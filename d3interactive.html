@@ -75,16 +75,16 @@
 
     d3.csv("world_population.csv").then(data => {
       data.forEach(d => {
-        d.Population_2010 = +d.Population_2010;
-        d.Population_2022 = +d.Population_2022;
+        d.Population2010 = +d.Population2010;
+        d.Population2022 = +d.Population2022;
       });
 
       const x = d3.scaleLinear()
-        .domain([0, d3.max(data, d => d.Population_2010)])
+        .domain([0, d3.max(data, d => d.Population2010)])
         .range([0, width]);
 
       const y = d3.scaleLinear()
-        .domain([0, d3.max(data, d => d.Population_2022)])
+        .domain([0, d3.max(data, d => d.Population2022)])
         .range([height, 0]);
 
       svg.append("g")
@@ -114,16 +114,16 @@
         .enter()
         .append("circle")
           .attr("class", "dot")
-          .attr("cx", d => x(d.Population_2010))
-          .attr("cy", d => y(d.Population_2022))
+          .attr("cx", d => x(d.Population2010))
+          .attr("cy", d => y(d.Population2022))
           .attr("r", 5)
           .attr("fill", "#4682b4")
           .on("mouseover", (event, d) => {
             tooltip.transition().duration(200).style("opacity", 0.9);
             tooltip.html(
               `<strong>${d.Country}</strong><br>
-               2010: ${d3.format(",")(d.Population_2010)}<br>
-               2022: ${d3.format(",")(d.Population_2022)}`
+               2010: ${d3.format(",")(d.Population2010)}<br>
+               2022: ${d3.format(",")(d.Population2022)}`
             )
             .style("left", (event.pageX + 10) + "px")
             .style("top", (event.pageY - 30) + "px");
