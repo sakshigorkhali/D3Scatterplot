@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>D3 Interactive Scatterplot — Fixed</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin: 24px; background:#f7f7f7; }
+    h1 { font-size: 18px; margin-bottom: 6px; }
+    p { margin-top: 0; color: #444; }
+    svg { background: white; border: 1px solid #ddd; }
+    .tooltip {
+      position: absolute;
+      background: white;
+      border: 1px solid #bbb;
+      padding: 8px;
+      font-size: 13px;
+      pointer-events: none;
+      border-radius: 4px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      opacity: 0;
+      transition: opacity 120ms;
+    }
+    .zoom-rect { fill: none; pointer-events: all; cursor: move; }
+  </style>
+</head>
+<body>
+  <h1>D3 Interactive Scatterplot — Fixed</h1>
+  <p>Hover points for a tooltip. Drag to pan, scroll or pinch to zoom. Open the Developer Console if anything goes wrong.</p>
+
+  <svg id="chart" width="820" height="520" role="img" aria-label="Interactive scatterplot"></svg>
+
+  <div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
+
+<script>
+(function(){
+  try {
+    const data = [
+      {x: 10, y: 20, category: "A", label: "p1"},
+      {x: 15, y: 35, category: "B", label: "p2"},
+      {x: 20, y: 40, category: "A", label: "p3"},
+      {x: 25, y: 23, category: "C", label: "p4"},
+      {x: 30, y: 45, category: "B", label: "p5"},
+      {x: 35, y: 50, category: "A", label: "p6"},
+      {x: 40, y: 33, category: "C", label: "p7"},
+      {x: 45, y: 60, category: "B", label: "p8"},
+      {x: 50, y: 55, category: "C", label: "p9"},
+      {x: 55, y: 70, category: "A", label: "p10"}
+    ];
+
+    const svg = d3.select("#chart");
+    const width = +svg.attr("width");
+    const height = +svg.attr("height");
+    const margin = {top: 30, right: 30, bottom: 60, left: 70};
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+
+    // Scales (base scales - not mutated)
+    const xBase = d3.scaleLinear()
+      .domain([d3.min(data, d => d.x) - 5, d3.max(data, d => d.x) + 5])
+      .range([0, innerWidth])
+      .nice();
+
+    const yBase = d3.scaleLinear()
+      .domain([d3.min(data, d => d.y) - 5, d3.max(data, d => d.y) + 5])
+      .range([innerHeight, 0])
+      .nice();
+
+    const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+    // Container group
+    const g = svg.append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // Clip path so points don't overflow when zoomed
+    g.append("clipPath")
+      .attr("id","clip")
+      .append("rect")
+        .attr("width", innerWidth)
+        .attr("height", innerHeight);
+
+    // Axes groups
+    const xAxisG = g.append("g")
+      .attr("transform", `translate(0, ${innerHeight})`)
+      .attr("class","x-axis");
+
+    const yAxisG = g.append("g")
+      .attr("class","y-axis");
+
+    // Axis labels
+    g.append("text")
+      .attr("x", innerWidth / 2)
+      .attr("y", innerHeight + 44)
+      .attr("text-anchor", "middle")
+      .attr("font-size", 13)
+      .text("X");
+
+    g.append("text")
+      .attr("transform", `translate(${-50}, ${innerHeight/2}) rotate(-90)`)
+      .attr("text-anchor", "middle")
+      .attr("font-size", 13)
+      .text("Y");
+
+    // Points group (clipped)
+    const pointsG = g.append("g")
+      .attr("clip-path", "url(#clip)");
+
+    // Draw points
+    function drawPoints(xScale, yScale) {
+      // join pattern so updates work fine after zoom/pan if needed
+      const circles = pointsG.selectAll("circle")
+        .data(data, d => d.label);
+
+      circles.enter()
+        .append("circle")
+          .attr("r", 6)
+          .attr("fill", d => color(d.category))
+          .attr("opacity", 0.85)
+          .on("mouseenter", (event, d) => {
+            showTooltip(event, d);
+          })
+          .on("mousemove", (event, d) => {
+            moveTooltip(event);
+          })
+          .on("mouseleave", (event, d) => {
+            hideTooltip();
+          })
+        .merge(circles)
+          .attr("cx", d => xScale(d.x))
+          .attr("cy", d => yScale(d.y));
+
+      circles.exit().remove();
+    }
+
+    // Initial render
+    drawPoints(xBase, yBase);
+
+    // Draw axes
+    const xAxis = d3.axisBottom(xBase).ticks(8);
+    const yAxis = d3.axisLeft(yBase).ticks(8);
+
+    xAxisG.call(xAxis);
+    yAxisG.call(yAxis);
+
+    // Tooltip helpers
+    const tooltip = d3.select("#tooltip");
+    function showTooltip(event, d) {
+      tooltip
+        .style("opacity", 1)
+        .style("left", (event.pageX + 10) + "px")
+        .style("top", (event.pageY - 28) + "px")
+        .html(`<strong>${d.label}</strong><br/>x: ${d.x}<br/>y: ${d.y}<br/>cat: ${d.category}`);
+      tooltip.attr("aria-hidden", "false");
+    }
+    function moveTooltip(event) {
+      tooltip
+        .style("left", (event.pageX + 10) + "px")
+        .style("top", (event.pageY - 28) + "px");
+    }
+    function hideTooltip() {
+      tooltip.style("opacity", 0);
+      tooltip.attr("aria-hidden", "true");
+    }
+
+    // Zoom behavior
+    const zoom = d3.zoom()
+      .scaleExtent([0.6, 8])
+      .translateExtent([[-100, -100], [innerWidth + 100, innerHeight + 100]])
+      .on("zoom", zoomed);
+
+    // Add a transparent rect to capture pointer events reliably (useful on some browsers)
+    g.append("rect")
+      .attr("class", "zoom-rect")
+      .attr("width", innerWidth)
+      .attr("height", innerHeight)
+      .style("fill", "transparent")
+      .style("cursor", "move")
+      .lower(); // put under points so points are hoverable
+
+    svg.call(zoom);
+
+    function zoomed(event) {
+      // event.transform is the current transform
+      const t = event.transform;
+
+      // create rescaled axes
+      const zx = t.rescaleX(xBase);
+      const zy = t.rescaleY(yBase);
+
+      // update axes
+      xAxisG.call(d3.axisBottom(zx).ticks(8));
+      yAxisG.call(d3.axisLeft(zy).ticks(8));
+
+      // update points positions using the rescaled axes (so r remains constant)
+      pointsG.selectAll("circle")
+        .attr("cx", d => zx(d.x))
+        .attr("cy", d => zy(d.y));
+    }
+
+    // OPTIONAL: reset view on double click
+    svg.on("dblclick", () => {
+      svg.transition().duration(450).call(zoom.transform, d3.zoomIdentity);
+    });
+
+    // Small console message
+    console.log("Scatterplot initialized. Try scroll to zoom, drag to pan, double-click to reset.");
+
+  } catch (err) {
+    // If something throws, show the error in console and also visually
+    console.error("Error initializing scatterplot:", err);
+    const errDiv = document.createElement("div");
+    errDiv.style.background = "#ffecec";
+    errDiv.style.border = "1px solid #ffbcbc";
+    errDiv.style.padding = "12px";
+    errDiv.style.marginTop = "12px";
+    errDiv.textContent = "An error occurred while initializing the chart. Check the console for details.";
+    document.body.appendChild(errDiv);
+  }
+})();
+</script>
+</body>
+</html>
